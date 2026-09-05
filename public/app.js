@@ -34,7 +34,7 @@ const PLACES = [
 ];
 
 const usd = (raw) => "$" + (Number(raw) / 1e6).toFixed(2);
-const c1 = (n) => (n === null || n === undefined ? "—" : Number(n).toFixed(1) + "°C");
+const c1 = (n) => (n === null || n === undefined ? "N/A" : Number(n).toFixed(1) + "°C");
 const short = (addr) => addr.slice(0, 6) + "…" + addr.slice(-4);
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const txLink = (hash) => `${EXPLORER}/tx/${hash}`;
@@ -51,7 +51,7 @@ async function api(path, opts) {
  *  sure it's on Base Sepolia — adding the chain if the wallet doesn't know it
  *  yet, since a testnet chain is rarely pre-configured. */
 async function connectWallet() {
-  if (!window.ethereum) throw new Error("No wallet found — install MetaMask or another browser wallet.");
+  if (!window.ethereum) throw new Error("No wallet found. Install MetaMask or another browser wallet.");
   const provider = new ethers.BrowserProvider(window.ethereum);
   await provider.send("eth_requestAccounts", []);
 

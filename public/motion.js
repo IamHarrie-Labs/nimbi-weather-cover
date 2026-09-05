@@ -1,8 +1,7 @@
-/* Nimbi motion engine — cursor follow, character reveals, nav collapse, and
-   the consensus wheel. Vanilla, no animation library: a pinned scroll stage
-   with a handful of orbiting cards is simple enough to drive with one scroll
-   listener and requestAnimationFrame, and that keeps the whole site to one
-   runtime dependency (ethers, only on the buy page). */
+/* Nimbi motion engine: cursor follow, character reveals, nav collapse and
+   mobile menu, the marquee, the oracle card row, and a small touch-friendly
+   carousel. Vanilla, no animation library, so the whole site stays down to
+   one runtime dependency (ethers, only on the buy page). */
 
 // ---------------------------------------------------------------- cursor
 export function initCursor(root = document) {
@@ -36,20 +35,49 @@ export function initCursor(root = document) {
 }
 
 // ---------------------------------------------------------------- reveals
-/** Split text into per-character spans inside a clipping mask, then reveal
- *  on intersection. Splitting per word (not per letter) for longer lines
- *  keeps the DOM light and still reads as a reveal. */
+/** Split text into per-word spans inside a clipping mask, then reveal on
+ *  intersection. Word-level (not letter-level) keeps the DOM light and still
+ *  reads as a reveal.
+ *
+ * Whitespace between words is kept as a plain text node, never wrapped in
+ * its own span. A span whose *entire* content is one space is exactly the
+ * "leading/trailing whitespace of an element" case the CSS spec says
+ * browsers must strip, so an earlier version of this that wrapped every
+ * token (including the spaces) silently ate every space in every heading:
+ * "Weather cover" rendered as "Weathercover". A bare text node between two
+ * elements doesn't hit that rule, so it survives, and screen readers,
+ * copy/paste, and search all still see normal spaced-out text. */
 export function prepareReveal(el, { by = "word" } = {}) {
   const text = el.textContent;
-  const parts = by === "char" ? [...text] : text.split(/(\s+)/);
+
+  if (by === "char") {
+    el.textContent = "";
+    el.classList.add("reveal-line");
+    [...text].forEach((ch, i) => {
+      const span = document.createElement("span");
+      span.className = "ch";
+      span.textContent = ch;
+      span.style.transitionDelay = `${i * 18}ms`;
+      el.appendChild(span);
+    });
+    return;
+  }
+
+  const tokens = text.split(/(\s+)/); // capturing group keeps whitespace as its own token
   el.textContent = "";
   el.classList.add("reveal-line");
-  parts.forEach((part, i) => {
-    if (part === "" ) return;
+  let wordIndex = 0;
+  tokens.forEach((token) => {
+    if (token === "") return;
+    if (/^\s+$/.test(token)) {
+      el.appendChild(document.createTextNode(token));
+      return;
+    }
     const span = document.createElement("span");
-    span.className = by === "char" ? "ch" : "word";
-    span.textContent = part === " " ? " " : part;
-    span.style.transitionDelay = `${i * (by === "char" ? 18 : 40)}ms`;
+    span.className = "word";
+    span.textContent = token;
+    span.style.transitionDelay = `${wordIndex * 40}ms`;
+    wordIndex++;
     el.appendChild(span);
   });
 }
@@ -101,6 +129,17 @@ export function initNavCollapse(navEl, thresholdPx = 80) {
   apply();
 }
 
+/** A real mobile menu: a button that opens a full dark panel with every nav
+ *  link and the buy button, rather than just hiding links with nowhere to
+ *  go. Closes on link click, outside click, or Escape. */
+export function initMobileMenu(toggleEl, panelEl) {
+  const open = () => { panelEl.classList.add("open"); toggleEl.setAttribute("aria-expanded", "true"); };
+  const close = () => { panelEl.classList.remove("open"); toggleEl.setAttribute("aria-expanded", "false"); };
+  toggleEl.addEventListener("click", () => (panelEl.classList.contains("open") ? close() : open()));
+  panelEl.querySelectorAll("a").forEach((a) => a.addEventListener("click", close));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+}
+
 // ---------------------------------------------------------------- marquee
 export function initMarquee(trackEl, speedPxPerSec = 60) {
   // Duplicate content once so the loop can wrap seamlessly.
@@ -119,113 +158,82 @@ export function initMarquee(trackEl, speedPxPerSec = 60) {
   requestAnimationFrame(step);
 }
 
-// ---------------------------------------------------------------- wheel
+// ---------------------------------------------------------------- oracle row
 /**
- * The consensus wheel: six oracle readings arranged on a ring, driven
- * through three stages (read / consensus / settle) by scroll position
- * within a tall pinned wrapper.
+ * Renders one oracle's reading as a card. Used both in the landing page's
+ * Read/Consensus/Settle carousel and the buy page's mini settle view, so the
+ * same visual vocabulary shows up everywhere this story is told.
  *
- * Cards orbit the ring's centre; each card's own element counter-rotates so
- * its text stays upright while the ring itself turns — the classic trick for
- * "things on a wheel that don't spin with the wheel."
- *
- * `outlierSlug` must always end up alone on the outer ring in stage 2 — that
- * is the one detail the whole visual exists to protect.
+ * No motion of its own beyond a fade-in and a colour change: the earlier
+ * version spun these cards around a ring, which looked lively but did most
+ * of its work on a scroll-jacked pinned section that fought small screens
+ * and ate a lot of code to keep six cards from overlapping. A plain row that
+ * highlights the majority and dims the outlier says the same thing faster
+ * and works the same way on a phone as it does on a desktop.
  */
-export class ConsensusWheel {
-  constructor(container, { onStage } = {}) {
-    this.container = container;
-    this.onStage = onStage || (() => {});
-    this.cards = [];
-    this.stage = 0; // 0 read, 1 consensus, 2 settle
-    this.angle = 0;
-    this._raf = null;
-    this._spinning = true;
-  }
-
-  setReadings(readings, outlierSlugs) {
-    this.container.innerHTML = "";
-    this.cards = readings.map((r, i) => {
-      const el = document.createElement("div");
-      el.className = "wheel-card" + (outlierSlugs.has(r.slug) ? " is-outlier" : "");
-      el.innerHTML = `<span class="wc-name">${r.slug}</span><span class="wc-val mono">${r.celsius.toFixed(1)}</span>`;
-      this.container.appendChild(el);
-      return { el, outlier: outlierSlugs.has(r.slug), baseAngle: (i / readings.length) * Math.PI * 2 };
-    });
-    this._layout();
-    this._startSpin();
-  }
-
-  setStage(stage) {
-    if (stage === this.stage) return;
-    this.stage = stage;
-    this.onStage(stage);
-    if (stage === 0) this._startSpin();
-    else this._stopSpin();
-    this._layout();
-  }
-
-  _startSpin() {
-    if (this._raf) return;
-    const tick = () => {
-      this.angle += 0.0016;
-      this._layout();
-      this._raf = requestAnimationFrame(tick);
-    };
-    this._raf = requestAnimationFrame(tick);
-  }
-
-  _stopSpin() {
-    if (this._raf) cancelAnimationFrame(this._raf);
-    this._raf = null;
-  }
-
-  _layout() {
-    const rect = this.container.getBoundingClientRect();
-    const cx = rect.width / 2, cy = rect.height / 2;
-    const outerR = Math.min(rect.width, rect.height) * 0.42;
-    const innerR = outerR * 0.55;
-
-    this.cards.forEach((c) => {
-      const a = c.baseAngle + this.angle;
-      // Stage 1+: agreeing cards pull to the inner ring; the outlier stays out.
-      const onInner = this.stage >= 1 && !c.outlier;
-      const r = this.stage === 0 ? outerR : (onInner ? innerR : outerR);
-      const x = cx + Math.cos(a) * r;
-      const y = cy + Math.sin(a) * r;
-      // Counter-rotate the card by -angle so its text stays upright while it
-      // still orbits with the ring during stage 0.
-      const counter = this.stage === 0 ? -this.angle : 0;
-      // Centre the card on its ring point using its own rendered size, not a
-      // guessed constant — the mini wheel on the buy page uses smaller cards
-      // than the landing page's, and a fixed offset only centres one of them.
-      const halfW = c.el.offsetWidth / 2 || 40;
-      const halfH = c.el.offsetHeight / 2 || 24;
-      c.el.style.transform = `translate(${x - halfW}px, ${y - halfH}px) rotate(${counter}rad)`;
-      c.el.classList.toggle("in-ring", onInner);
-      c.el.classList.toggle("out-ring", this.stage >= 1 && c.outlier);
-    });
-  }
+export function renderOracleCards(container, readings, outlierSlugs, { stage = "read" } = {}) {
+  container.innerHTML = "";
+  readings.forEach((r) => {
+    const isOutlier = outlierSlugs.has(r.slug);
+    const el = document.createElement("div");
+    el.className = "oracle-card";
+    if (stage !== "read" && isOutlier) el.classList.add("is-outlier");
+    if (stage !== "read" && !isOutlier) el.classList.add("is-agreeing");
+    el.innerHTML = `<span class="oc-name">${r.slug}</span><span class="oc-val mono">${r.celsius.toFixed(1)}°</span>${
+      stage !== "read" && isOutlier ? '<span class="oc-tag">excluded</span>' : ""
+    }`;
+    container.appendChild(el);
+  });
 }
 
-/** Drive a ConsensusWheel's stage from scroll position inside a tall wrapper.
- *  `wrapper` should be significantly taller than the viewport (e.g. 300vh)
- *  so each stage gets real scroll distance rather than snapping instantly. */
-export function pinnedStages(wrapper, stageCount, onChange) {
-  let ticking = false;
-  function update() {
-    ticking = false;
-    const rect = wrapper.getBoundingClientRect();
-    const total = rect.height - window.innerHeight;
-    if (total <= 0) return;
-    const progressed = Math.min(1, Math.max(0, -rect.top / total));
-    const stage = Math.min(stageCount - 1, Math.floor(progressed * stageCount));
-    onChange(stage, progressed);
-  }
-  window.addEventListener("scroll", () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(update);
+// ---------------------------------------------------------------- carousel
+/** A small touch-friendly carousel: swipe or use the dot/arrow controls,
+ *  no scroll-jacking. `slides` is a NodeList/array of elements already in
+ *  the DOM inside `track`. */
+export function initCarousel(root) {
+  const track = root.querySelector(".carousel-track");
+  const slides = [...track.children];
+  const dotsWrap = root.querySelector(".carousel-dots");
+  const prevBtn = root.querySelector(".carousel-prev");
+  const nextBtn = root.querySelector(".carousel-next");
+  let index = 0;
+
+  const dots = slides.map((_, i) => {
+    const d = document.createElement("button");
+    d.setAttribute("aria-label", `Go to slide ${i + 1}`);
+    d.addEventListener("click", () => go(i));
+    dotsWrap.appendChild(d);
+    return d;
   });
-  update();
+
+  function render() {
+    track.style.transform = `translateX(-${index * 100}%)`;
+    dots.forEach((d, i) => d.classList.toggle("active", i === index));
+    if (prevBtn) prevBtn.disabled = index === 0;
+    if (nextBtn) nextBtn.disabled = index === slides.length - 1;
+    root.dispatchEvent(new CustomEvent("slidechange", { detail: { index } }));
+  }
+
+  function go(i) {
+    index = Math.max(0, Math.min(slides.length - 1, i));
+    render();
+  }
+
+  prevBtn?.addEventListener("click", () => go(index - 1));
+  nextBtn?.addEventListener("click", () => go(index + 1));
+
+  // Touch/swipe support: track lets native scroll happen too (scroll-snap
+  // in CSS), this just keeps the dots/arrows in sync with where a swipe
+  // actually landed.
+  let startX = null;
+  track.addEventListener("touchstart", (e) => { startX = e.touches[0].clientX; }, { passive: true });
+  track.addEventListener("touchend", (e) => {
+    if (startX === null) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 40) go(index + (dx < 0 ? 1 : -1));
+    startX = null;
+  });
+
+  render();
+  return { go, get index() { return index; } };
 }

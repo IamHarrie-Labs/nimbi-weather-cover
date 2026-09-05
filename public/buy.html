@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nimbi — buy cover</title>
+<title>Nimbi | Buy cover</title>
 <link rel="stylesheet" href="styles.css">
 <style>
   body { padding-top: 0; }
@@ -45,11 +45,7 @@
   main.content { max-width: 900px; margin: 0 auto; padding: 50px 6vw 100px; }
   .policy-card { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
   .policy-card .pc-desc { font-size: 1.05rem; font-weight: 600; }
-  .mini-wheel-wrap { width: 160px; height: 160px; position: relative; display: none; }
-  .mini-wheel-wrap.show { display: block; }
-  .mini-wheel-wrap .wheel-card { width: 70px; padding: 5px 8px; }
-  .mini-wheel-wrap .wc-name { font-size: 0.5rem; }
-  .mini-wheel-wrap .wc-val { font-size: 0.7rem; }
+  .settle-note { font-size: 0.8rem; color: #888; }
 
   .filter-row { display: flex; gap: 10px; margin: 20px 0; }
   .filter-row button { border: 1px solid #ccc; background: transparent; border-radius: 100px; padding: 6px 16px; font-size: 0.8rem; cursor: pointer; }
@@ -61,8 +57,9 @@
 </head>
 <body class="paper">
 
-<nav class="nav pill-dark" id="nav" style="position:static;transform:none;margin:24px auto;max-width:fit-content;">
+<nav class="nav pill-dark" id="nav" style="position:static;transform:none;margin:24px auto;max-width:fit-content;gap:20px;">
   <div class="logo"><a href="/" style="color:inherit">Nimb<span>i</span></a></div>
+  <a href="/docs.html" style="font-size:0.85rem;color:#cfcfcf;">Docs</a>
   <div class="cta-wrap mono" id="wallet-status" style="font-size:0.8rem;color:#bbb;">not connected</div>
 </nav>
 
@@ -137,7 +134,7 @@
 
 <footer class="dark" style="padding:50px 6vw;border-radius:25px 25px 0 0;margin-top:60px;">
   <div style="font-size:0.9rem;color:#cfcfcf;">
-    Base Sepolia testnet · play-money USDC · <span style="color:var(--amber);font-weight:700;">NOT INSURANCE — no real risk transfer, no underwriting</span><br>
+    Base Sepolia testnet · play-money USDC · <span style="color:var(--amber);font-weight:700;">NOT INSURANCE. No real risk transfer, no underwriting.</span><br>
     Contract <a id="contract-link" href="#" target="_blank" rel="noopener" style="text-decoration:underline;color:var(--mint)"></a>
   </div>
 </footer>
@@ -145,7 +142,7 @@
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
 <script src="app.js"></script>
 <script type="module">
-import { initCursor, ConsensusWheel } from "/motion.js";
+import { initCursor } from "/motion.js";
 initCursor();
 
 let wallet = null;
@@ -188,12 +185,12 @@ async function doConnect() {
 }
 
 async function doMint() {
-  setStatus("minting 2.00 test USDC…");
+  setStatus("Minting 2.00 test USDC...");
   try {
     const token = new ethers.Contract(TOKEN, TOKEN_ABI, wallet.signer);
     const tx = await token.mint(wallet.address, ethers.parseUnits("2", 6));
     await tx.wait();
-    setStatus(`minted — tx ${tx.hash.slice(0, 14)}…`, "ok");
+    setStatus(`Minted. Tx ${tx.hash.slice(0, 14)}...`, "ok");
     document.getElementById("approve-btn").disabled = false;
     document.getElementById("tab-approve").classList.add("active");
   } catch (e) {
@@ -202,12 +199,12 @@ async function doMint() {
 }
 
 async function doApprove() {
-  setStatus("approving…");
+  setStatus("Approving...");
   try {
     const token = new ethers.Contract(TOKEN, TOKEN_ABI, wallet.signer);
     const tx = await token.approve(CONTRACT, ethers.MaxUint256);
     await tx.wait();
-    setStatus(`approved — tx ${tx.hash.slice(0, 14)}…`, "ok");
+    setStatus(`Approved. Tx ${tx.hash.slice(0, 14)}...`, "ok");
     document.getElementById("buy-btn").disabled = false;
     document.getElementById("tab-buy").classList.add("active");
   } catch (e) {
@@ -216,7 +213,7 @@ async function doApprove() {
 }
 
 async function doBuy() {
-  setStatus("buying…");
+  setStatus("Buying...");
   try {
     const guard = new ethers.Contract(CONTRACT, GUARD_ABI, wallet.signer);
     const place = document.getElementById("place-select").value;
@@ -232,26 +229,24 @@ async function doBuy() {
     for (const log of receipt.logs) {
       try { const p = guard.interface.parseLog(log); if (p?.name === "PolicyBought") { id = Number(p.args.id); break; } } catch {}
     }
-    setStatus(`bought policy #${id} — tx ${receipt.hash.slice(0, 14)}…`, "ok");
+    setStatus(`Bought policy #${id}. Tx ${receipt.hash.slice(0, 14)}...`, "ok");
     refreshLedger();
   } catch (e) {
     setStatus(e.shortMessage || e.message, "err");
   }
 }
 
-const miniWheels = new Map();
-
-async function doSettle(id, container) {
-  container.classList.add("show");
-  let wheel = miniWheels.get(id);
-  if (!wheel) { wheel = new ConsensusWheel(container); miniWheels.set(id, wheel); }
+async function doSettle(id, noteEl, btn) {
+  btn.disabled = true;
+  noteEl.textContent = "Reading the oracles now...";
   try {
     const res = await api("/api/settle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
-    container.classList.remove("show");
+    noteEl.textContent = res.outcome ? `Settled: ${res.outcome.event}` : "Settled.";
     refreshLedger();
     return res;
   } catch (e) {
-    container.classList.remove("show");
+    noteEl.textContent = "Could not settle right now.";
+    btn.disabled = false;
     alert(e.message);
   }
 }
@@ -275,11 +270,11 @@ function renderMine() {
       <div class="pc-desc">#${p.id} · ${cap(p.place)} ${p.payAbove ? "≥" : "≤"} ${(p.thresholdMilliC / 1000).toFixed(1)}°C
         <span class="outcome-pill ${outcomeOf(p)}">${outcomeOf(p)}</span>
       </div>
-      <div class="mini-wheel-wrap"></div>
+      <div class="settle-note"></div>
       ${p.status === "Open" ? `<button class="pill pill-light settle-btn" data-label="Settle now"><span class="label">Settle now</span></button>` : ""}
     `;
     const btn = row.querySelector(".settle-btn");
-    if (btn) btn.addEventListener("click", () => doSettle(p.id, row.querySelector(".mini-wheel-wrap")));
+    if (btn) btn.addEventListener("click", () => doSettle(p.id, row.querySelector(".settle-note"), btn));
     el.appendChild(row);
   });
 }

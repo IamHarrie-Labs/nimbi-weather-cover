@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nimbi | Docs</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .docs-wrap { max-width: 760px; margin: 0 auto; padding: 150px 6vw 100px; }
+  .docs-wrap h1 { font-size: clamp(2.2rem, 5vw, 3.5rem); margin: 0 0 16px; }
+  .docs-wrap .lede { font-size: 1.2rem; color: #444; max-width: 56ch; margin: 0 0 60px; }
+  .docs-wrap h2 { font-size: 1.5rem; margin: 60px 0 16px; }
+  .docs-wrap p { font-size: 1.05rem; line-height: 1.65; color: #333; max-width: 62ch; }
+  .docs-wrap p + p { margin-top: 14px; }
+  .docs-wrap .outcome-list { display: grid; gap: 12px; margin: 20px 0; }
+  .docs-wrap .outcome-list .row { display: flex; gap: 14px; padding: 16px 18px; border-radius: 14px; background: var(--white); }
+  .docs-wrap .outcome-list .row .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .docs-wrap .outcome-list .row.mint .dot { background: var(--mint-deep); }
+  .docs-wrap .outcome-list .row.ink .dot { background: var(--ink); }
+  .docs-wrap .outcome-list .row.amber .dot { background: var(--amber); }
+  .docs-wrap .outcome-list .row b { display: block; margin-bottom: 4px; }
+  .docs-wrap .callout-box { background: var(--magenta); border-radius: 18px; padding: 24px 26px; margin: 24px 0; }
+  .docs-wrap .callout-box p { color: var(--ink); font-weight: 600; margin: 0; }
+  .docs-wrap .disclosure { background: var(--ink); color: var(--white); border-radius: 18px; padding: 24px 26px; margin: 60px 0 0; }
+  .docs-wrap .disclosure p { color: #dcdcdc; }
+  .docs-wrap .disclosure .warn { color: var(--amber); font-weight: 700; }
+  .docs-wrap a.inline { text-decoration: underline; }
+  .docs-cta { margin-top: 60px; }
+
+  @media (max-width: 640px) {
+    .nav { max-width: calc(100vw - 32px); }
+  }
+</style>
+</head>
+<body class="paper">
+
+<nav class="nav pill-dark" id="nav">
+  <div class="logo"><a href="/" style="color:inherit">Nimb<span>i</span></a></div>
+  <div class="links">
+    <a href="/#how">How it works</a>
+    <a href="/#settlements">Settlements</a>
+    <a href="/docs.html">Docs</a>
+  </div>
+  <div class="cta-wrap"><a class="pill pill-dark" href="/buy.html" data-label="Buy cover"><span class="label">Buy cover</span></a></div>
+  <button class="nav-burger" id="nav-burger" aria-label="Open menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="mobile-menu" id="mobile-menu">
+  <a href="/#how">How it works</a>
+  <a href="/#settlements">Settlements</a>
+  <a href="/docs.html">Docs</a>
+  <a class="pill pill-dark mm-buy" href="/buy.html" data-label="Buy cover"><span class="label">Buy cover</span></a>
+</div>
+
+<div class="docs-wrap">
+  <h1 class="display">What Nimbi actually does</h1>
+  <p class="lede">A plain explanation, no jargon. If anything here is still unclear, that's a gap in this page, not in your understanding.</p>
+
+  <h2>The basic idea</h2>
+  <p>Nimbi sells cover against a temperature. You pick a place, a temperature line, and a date. If the real temperature crosses that line by that date, you get paid. If it doesn't, you don't. That part is standard.</p>
+  <p>The part that isn't standard is how Nimbi decides what the "real temperature" is. It doesn't trust one weather source. It asks six of them, at the same time, the same question, and only acts when a real majority of them agree with each other.</p>
+
+  <h2>Why one source isn't enough</h2>
+  <p>Any single weather feed can go stale, glitch, or just be wrong, and nothing downstream would notice. We found this happening for real while building Nimbi: one of our six oracles, called <b>chainsight-oracle</b>, reported the exact same temperature (40.50°C) for three completely different cities, on the same day.</p>
+  <div class="callout-box">
+    <p>Cairo, London, and Reykjavik do not share a climate. A source that says the same number for all three isn't measuring anything. It's stuck.</p>
+  </div>
+  <p>Nimbi catches this automatically. It doesn't need to know in advance which oracle is broken. It just looks at where the readings cluster, finds the group that agrees with each other, and treats anything far outside that group as unreliable for this particular question, right now.</p>
+
+  <h2>How a settlement actually happens</h2>
+  <p>Every time it's time to check a policy, three things happen in order:</p>
+  <div class="outcome-list">
+    <div class="row mint"><span class="dot"></span><div><b>1. Read.</b> The agent asks all six oracles the same question about the same place, at the same time.</div></div>
+    <div class="row ink"><span class="dot"></span><div><b>2. Consensus.</b> It checks whether a real majority of them landed close together. If chainsight-oracle (or any other source) is off on its own, it gets named and excluded, not averaged in.</div></div>
+    <div class="row amber"><span class="dot"></span><div><b>3. Settle.</b> If a majority agreed and the line was crossed, the payout happens immediately, on-chain. If not, nothing moves, and the reason gets written down permanently.</div></div>
+  </div>
+
+  <h2>The three outcomes, plainly</h2>
+  <p><b>Paid out</b> means a majority of oracles agreed and the temperature crossed your line. Money moves right away.</p>
+  <p><b>Checked</b> means a majority agreed, but the temperature never crossed your line. Nothing is owed. This isn't a failure, it's just a policy that didn't trigger.</p>
+  <p><b>Held</b> means the oracles couldn't agree, or too few of them answered. Nimbi refuses to guess. Your money stays exactly where it was, and the specific reason ("no majority", "spread too wide", and so on) is recorded on-chain for anyone to check.</p>
+
+  <h2>Why "Held" is the important one</h2>
+  <p>Most systems either pay out on bad data or quietly retry until something looks plausible. Nimbi does neither. A "Held" result is Nimbi correctly noticing it doesn't have good enough information to act, and saying so in public, on the blockchain, rather than guessing with your money.</p>
+
+  <div class="disclosure">
+    <p><span class="warn">This is a testnet demonstration, not insurance.</span> It runs on Base Sepolia using play-money USDC that anyone can mint for free. There is no real risk transfer, no underwriting, and no regulatory product behind it. It exists to show that consensus across independent sources is a workable, checkable way to decide when to move money automatically.</p>
+    <p>The contract address and every settlement it has ever made are public. You can verify all of this yourself rather than take our word for it.</p>
+  </div>
+
+  <div class="docs-cta">
+    <a class="pill pill-light" href="/buy.html" data-label="Try it yourself"><span class="label">Try it yourself</span></a>
+  </div>
+</div>
+
+<footer class="dark" style="padding:50px 6vw;border-radius:25px 25px 0 0;">
+  <div style="font-size:0.9rem;color:#cfcfcf;">
+    Base Sepolia testnet · play-money USDC · <span style="color:var(--amber);font-weight:700;">NOT INSURANCE. No real risk transfer, no underwriting.</span><br>
+    Contract <a id="contract-link" href="#" target="_blank" rel="noopener" style="text-decoration:underline;color:var(--mint)"></a>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script type="module">
+import { initCursor, initNavCollapse, initMobileMenu } from "/motion.js";
+initCursor();
+initNavCollapse(document.getElementById("nav"));
+initMobileMenu(document.getElementById("nav-burger"), document.getElementById("mobile-menu"));
+document.getElementById("contract-link").href = addrLink(CONTRACT);
+document.getElementById("contract-link").textContent = short(CONTRACT);
+</script>
+</body>
+</html>
