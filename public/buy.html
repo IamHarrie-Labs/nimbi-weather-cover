@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nimbi — buy cover</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { padding-top: 0; }
+  .tabs {
+    max-width: 900px; margin: 40px auto 0; padding: 18px 28px 0;
+    background: var(--ink); color: var(--white);
+    border-radius: 22px 22px 0 0;
+    display: flex; gap: 28px; align-items: center;
+  }
+  .tabs .tab { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; padding-bottom: 16px; color: #999; }
+  .tabs .tab.active { color: var(--white); border-bottom: 2px solid var(--mint); }
+  .tabs .tab .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--grey); }
+  .tabs .tab.active .dot { background: var(--mint); }
+
+  .buy-panel { max-width: 900px; margin: 0 auto; background: var(--magenta); border-radius: 0 0 25px 25px; padding: 40px 6vw 60px; color: var(--ink); }
+  .connect-row { text-align: center; padding: 60px 20px; }
+  .connect-row p { font-size: 1.3rem; font-weight: 600; margin-bottom: 24px; }
+
+  .sentence { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 600; line-height: 1.35; margin: 20px 0 30px; }
+  .sentence .grad-word { font-weight: 700; }
+
+  .fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 26px; }
+  .fields .field label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; opacity: 0.7; }
+  .fields select, .fields input {
+    width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.15);
+    background: rgba(255,255,255,0.6); font-family: inherit; font-size: 0.95rem; color: var(--ink);
+  }
+
+  .steps-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .step-pill { display: flex; align-items: center; gap: 8px; }
+  .step-pill .n { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--ink); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+  .step-pill.done .n { background: var(--ink); color: var(--white); }
+  .tx-hash { font-size: 0.75rem; opacity: 0.7; }
+
+  .buy-status { margin-top: 16px; font-size: 0.9rem; font-weight: 600; min-height: 20px; }
+  .buy-status.err { color: #8a0035; }
+  .buy-status.ok { color: #0a4a3a; }
+
+  main.content { max-width: 900px; margin: 0 auto; padding: 50px 6vw 100px; }
+  .policy-card { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .policy-card .pc-desc { font-size: 1.05rem; font-weight: 600; }
+  .mini-wheel-wrap { width: 160px; height: 160px; position: relative; display: none; }
+  .mini-wheel-wrap.show { display: block; }
+  .mini-wheel-wrap .wheel-card { width: 70px; padding: 5px 8px; }
+  .mini-wheel-wrap .wc-name { font-size: 0.5rem; }
+  .mini-wheel-wrap .wc-val { font-size: 0.7rem; }
+
+  .filter-row { display: flex; gap: 10px; margin: 20px 0; }
+  .filter-row button { border: 1px solid #ccc; background: transparent; border-radius: 100px; padding: 6px 16px; font-size: 0.8rem; cursor: pointer; }
+  .filter-row button.active { background: var(--ink); color: var(--white); border-color: var(--ink); }
+  tr.mine { background: rgba(106,216,202,0.12); }
+
+  @media (max-width: 700px) { .fields { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body class="paper">
+
+<nav class="nav pill-dark" id="nav" style="position:static;transform:none;margin:24px auto;max-width:fit-content;">
+  <div class="logo"><a href="/" style="color:inherit">Nimb<span>i</span></a></div>
+  <div class="cta-wrap mono" id="wallet-status" style="font-size:0.8rem;color:#bbb;">not connected</div>
+</nav>
+
+<div class="tabs">
+  <div class="tab active"><span class="dot"></span>1 Mint</div>
+  <div class="tab" id="tab-approve"><span class="dot"></span>2 Approve</div>
+  <div class="tab" id="tab-buy"><span class="dot"></span>3 Buy</div>
+</div>
+
+<section class="buy-panel">
+  <div class="connect-row" id="connect-panel">
+    <p>Connect a browser wallet to mint test USDC and buy cover.</p>
+    <button class="pill pill-light" id="connect-btn" data-label="Connect wallet"><span class="label">Connect wallet</span></button>
+  </div>
+
+  <div id="buy-form" style="display:none">
+    <div class="fields">
+      <div class="field">
+        <label>Place</label>
+        <select id="place-select"></select>
+      </div>
+      <div class="field">
+        <label>Direction</label>
+        <select id="direction-select">
+          <option value="true">At or above</option>
+          <option value="false">At or below</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Threshold °C</label>
+        <input type="number" id="threshold-input" value="30" step="0.1">
+      </div>
+      <div class="field">
+        <label>Expiry</label>
+        <select id="expiry-select">
+          <option value="3600">1 hour</option>
+          <option value="86400">1 day</option>
+          <option value="604800">7 days</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sentence" id="sentence"></div>
+
+    <div class="steps-row">
+      <button class="pill pill-light" id="mint-btn" data-label="1. Mint test USDC"><span class="label">1. Mint test USDC</span></button>
+      <button class="pill pill-light" id="approve-btn" disabled data-label="2. Approve"><span class="label">2. Approve</span></button>
+      <button class="pill pill-light" id="buy-btn" disabled data-label="3. Buy cover"><span class="label">3. Buy cover</span></button>
+    </div>
+    <div class="buy-status" id="buy-status"></div>
+  </div>
+</section>
+
+<main class="content">
+  <div class="card" id="mine-panel" style="display:none;margin-bottom:40px;">
+    <h2 style="font-size:0.85rem;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin:0 0 16px;">Your policies</h2>
+    <div id="mine-rows"></div>
+  </div>
+
+  <div class="filter-row">
+    <button class="active" data-filter="all">All</button>
+    <button data-filter="PaidOut">Paid out</button>
+    <button data-filter="Checked">Checked</button>
+    <button data-filter="Held">Held</button>
+    <button data-filter="Open">Open</button>
+  </div>
+  <table class="ledger" id="all-table">
+    <thead><tr><th>#</th><th>Place</th><th>Threshold</th><th>Status</th><th>Link</th></tr></thead>
+    <tbody><tr><td colspan="5">Loading…</td></tr></tbody>
+  </table>
+</main>
+
+<footer class="dark" style="padding:50px 6vw;border-radius:25px 25px 0 0;margin-top:60px;">
+  <div style="font-size:0.9rem;color:#cfcfcf;">
+    Base Sepolia testnet · play-money USDC · <span style="color:var(--amber);font-weight:700;">NOT INSURANCE — no real risk transfer, no underwriting</span><br>
+    Contract <a id="contract-link" href="#" target="_blank" rel="noopener" style="text-decoration:underline;color:var(--mint)"></a>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+<script src="app.js"></script>
+<script type="module">
+import { initCursor, ConsensusWheel } from "/motion.js";
+initCursor();
+
+let wallet = null;
+let allPolicies = [];
+let currentFilter = "all";
+
+function renderPlaces() {
+  document.getElementById("place-select").innerHTML = PLACES.map((p) => `<option value="${p.key}">${p.name}</option>`).join("");
+}
+
+function updateSentence() {
+  const place = PLACES.find((p) => p.key === document.getElementById("place-select").value);
+  const dir = document.getElementById("direction-select").value === "true" ? "at or above" : "at or below";
+  const threshold = parseFloat(document.getElementById("threshold-input").value || "0").toFixed(1);
+  const expiry = document.getElementById("expiry-select").selectedOptions[0].textContent;
+  document.getElementById("sentence").innerHTML =
+    `Pays out if <span class="grad-word">${place.name}</span> is ${dir} <span class="grad-word">${threshold}°C</span> within <span class="grad-word">${expiry}</span>.`;
+}
+["place-select", "direction-select", "threshold-input", "expiry-select"].forEach((id) =>
+  document.getElementById(id).addEventListener("input", updateSentence),
+);
+
+function setStatus(msg, kind) {
+  const el = document.getElementById("buy-status");
+  el.textContent = msg;
+  el.className = "buy-status" + (kind ? " " + kind : "");
+}
+
+async function doConnect() {
+  try {
+    wallet = await connectWallet();
+    document.getElementById("wallet-status").textContent = short(wallet.address);
+    document.getElementById("connect-panel").style.display = "none";
+    document.getElementById("buy-form").style.display = "block";
+    document.getElementById("mine-panel").style.display = "block";
+    refreshLedger();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function doMint() {
+  setStatus("minting 2.00 test USDC…");
+  try {
+    const token = new ethers.Contract(TOKEN, TOKEN_ABI, wallet.signer);
+    const tx = await token.mint(wallet.address, ethers.parseUnits("2", 6));
+    await tx.wait();
+    setStatus(`minted — tx ${tx.hash.slice(0, 14)}…`, "ok");
+    document.getElementById("approve-btn").disabled = false;
+    document.getElementById("tab-approve").classList.add("active");
+  } catch (e) {
+    setStatus(e.shortMessage || e.message, "err");
+  }
+}
+
+async function doApprove() {
+  setStatus("approving…");
+  try {
+    const token = new ethers.Contract(TOKEN, TOKEN_ABI, wallet.signer);
+    const tx = await token.approve(CONTRACT, ethers.MaxUint256);
+    await tx.wait();
+    setStatus(`approved — tx ${tx.hash.slice(0, 14)}…`, "ok");
+    document.getElementById("buy-btn").disabled = false;
+    document.getElementById("tab-buy").classList.add("active");
+  } catch (e) {
+    setStatus(e.shortMessage || e.message, "err");
+  }
+}
+
+async function doBuy() {
+  setStatus("buying…");
+  try {
+    const guard = new ethers.Contract(CONTRACT, GUARD_ABI, wallet.signer);
+    const place = document.getElementById("place-select").value;
+    const payAbove = document.getElementById("direction-select").value === "true";
+    const thresholdC = parseFloat(document.getElementById("threshold-input").value);
+    const expirySeconds = parseInt(document.getElementById("expiry-select").value, 10);
+    const expiry = Math.floor(Date.now() / 1000) + expirySeconds;
+    const premium = ethers.parseUnits("0.5", 6);
+
+    const tx = await guard.buyPolicy(ethers.encodeBytes32String(place), Math.round(thresholdC * 1000), payAbove, premium, expiry);
+    const receipt = await tx.wait();
+    let id = null;
+    for (const log of receipt.logs) {
+      try { const p = guard.interface.parseLog(log); if (p?.name === "PolicyBought") { id = Number(p.args.id); break; } } catch {}
+    }
+    setStatus(`bought policy #${id} — tx ${receipt.hash.slice(0, 14)}…`, "ok");
+    refreshLedger();
+  } catch (e) {
+    setStatus(e.shortMessage || e.message, "err");
+  }
+}
+
+const miniWheels = new Map();
+
+async function doSettle(id, container) {
+  container.classList.add("show");
+  let wheel = miniWheels.get(id);
+  if (!wheel) { wheel = new ConsensusWheel(container); miniWheels.set(id, wheel); }
+  try {
+    const res = await api("/api/settle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    container.classList.remove("show");
+    refreshLedger();
+    return res;
+  } catch (e) {
+    container.classList.remove("show");
+    alert(e.message);
+  }
+}
+
+function outcomeOf(p) {
+  if (p.attestations === 0) return "Open";
+  return p.last.settled ? (p.status === "PaidOut" ? "PaidOut" : "Checked") : "Held";
+}
+
+function renderMine() {
+  const mine = wallet ? allPolicies.filter((p) => p.holder.toLowerCase() === wallet.address.toLowerCase()) : [];
+  const el = document.getElementById("mine-rows");
+  if (!mine.length) { el.innerHTML = "<p style='color:#888'>You have no policies yet.</p>"; return; }
+  el.innerHTML = "";
+  mine.forEach((p) => {
+    const row = document.createElement("div");
+    row.className = "policy-card";
+    row.style.padding = "14px 0";
+    row.style.borderBottom = "1px solid #eee";
+    row.innerHTML = `
+      <div class="pc-desc">#${p.id} · ${cap(p.place)} ${p.payAbove ? "≥" : "≤"} ${(p.thresholdMilliC / 1000).toFixed(1)}°C
+        <span class="outcome-pill ${outcomeOf(p)}">${outcomeOf(p)}</span>
+      </div>
+      <div class="mini-wheel-wrap"></div>
+      ${p.status === "Open" ? `<button class="pill pill-light settle-btn" data-label="Settle now"><span class="label">Settle now</span></button>` : ""}
+    `;
+    const btn = row.querySelector(".settle-btn");
+    if (btn) btn.addEventListener("click", () => doSettle(p.id, row.querySelector(".mini-wheel-wrap")));
+    el.appendChild(row);
+  });
+}
+
+function renderAll() {
+  const tbody = document.querySelector("#all-table tbody");
+  const rows = allPolicies.slice().reverse().filter((p) => currentFilter === "all" || outcomeOf(p) === currentFilter);
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5">No policies match this filter.</td></tr>'; return; }
+  tbody.innerHTML = rows.map((p) => {
+    const mine = wallet && p.holder.toLowerCase() === wallet.address.toLowerCase();
+    return `<tr class="${mine ? "mine" : ""}">
+      <td>${p.id}</td><td>${cap(p.place)}</td>
+      <td>${p.payAbove ? "≥" : "≤"} ${(p.thresholdMilliC / 1000).toFixed(1)}°C</td>
+      <td><span class="outcome-pill ${outcomeOf(p)}">${outcomeOf(p)}</span></td>
+      <td><a href="${addrLink(CONTRACT)}" target="_blank" rel="noopener" style="text-decoration:underline">view</a></td>
+    </tr>`;
+  }).join("");
+}
+
+async function refreshLedger() {
+  try {
+    const data = await api("/api/ledger");
+    allPolicies = data.policies;
+    renderMine();
+    renderAll();
+  } catch (e) {
+    document.querySelector("#all-table tbody").innerHTML = `<tr><td colspan="5">${e.message}</td></tr>`;
+  }
+}
+
+document.querySelectorAll(".filter-row button").forEach((b) =>
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".filter-row button").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    currentFilter = b.dataset.filter;
+    renderAll();
+  }),
+);
+
+document.getElementById("connect-btn").onclick = doConnect;
+document.getElementById("mint-btn").onclick = doMint;
+document.getElementById("approve-btn").onclick = doApprove;
+document.getElementById("buy-btn").onclick = doBuy;
+document.getElementById("contract-link").href = addrLink(CONTRACT);
+document.getElementById("contract-link").textContent = short(CONTRACT);
+
+renderPlaces();
+updateSentence();
+refreshLedger();
+</script>
+</body>
+</html>

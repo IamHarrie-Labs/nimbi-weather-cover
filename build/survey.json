@@ -1,0 +1,230 @@
+{
+  "takenAt": "2026-09-05T07:33:33.916Z",
+  "toleranceC": 2,
+  "places": [
+    {
+      "place": "Cairo",
+      "median": 28.6,
+      "spread": 13.08,
+      "agreeing": 5,
+      "total": 6,
+      "settles": false,
+      "readings": [
+        {
+          "slug": "skywire-weather-check",
+          "subnetId": "7304",
+          "celsius": 28.5,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "verity-current-weather",
+          "subnetId": "9006",
+          "celsius": 28.8,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "openweathermap",
+          "subnetId": "211",
+          "celsius": 27.420000000000016,
+          "source": "temp(k)"
+        },
+        {
+          "slug": "weatherapi",
+          "subnetId": "212",
+          "celsius": 27.9,
+          "source": "temp_c(c)"
+        },
+        {
+          "slug": "isobar-weather",
+          "subnetId": "20260826",
+          "celsius": 28.7,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "chainsight-oracle",
+          "subnetId": "302",
+          "celsius": 40.5,
+          "source": "temperature_c(c)"
+        }
+      ]
+    },
+    {
+      "place": "Lagos",
+      "median": 25.95,
+      "spread": 14.8,
+      "agreeing": 5,
+      "total": 6,
+      "settles": false,
+      "readings": [
+        {
+          "slug": "skywire-weather-check",
+          "subnetId": "7304",
+          "celsius": 25.7,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "verity-current-weather",
+          "subnetId": "9006",
+          "celsius": 26,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "openweathermap",
+          "subnetId": "211",
+          "celsius": 27.710000000000036,
+          "source": "temp(k)"
+        },
+        {
+          "slug": "weatherapi",
+          "subnetId": "212",
+          "celsius": 25.8,
+          "source": "temp_c(c)"
+        },
+        {
+          "slug": "isobar-weather",
+          "subnetId": "20260826",
+          "celsius": 25.9,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "chainsight-oracle",
+          "subnetId": "302",
+          "celsius": 40.5,
+          "source": "temperature_c(c)"
+        }
+      ]
+    },
+    {
+      "place": "London",
+      "median": 14.35,
+      "spread": 27,
+      "agreeing": 5,
+      "total": 6,
+      "settles": false,
+      "readings": [
+        {
+          "slug": "skywire-weather-check",
+          "subnetId": "7304",
+          "celsius": 13.5,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "verity-current-weather",
+          "subnetId": "9006",
+          "celsius": 14.4,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "openweathermap",
+          "subnetId": "211",
+          "celsius": 14.110000000000014,
+          "source": "temp(k)"
+        },
+        {
+          "slug": "weatherapi",
+          "subnetId": "212",
+          "celsius": 14.6,
+          "source": "temp_c(c)"
+        },
+        {
+          "slug": "isobar-weather",
+          "subnetId": "20260826",
+          "celsius": 14.3,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "chainsight-oracle",
+          "subnetId": "302",
+          "celsius": 40.5,
+          "source": "temperature_c(c)"
+        }
+      ]
+    },
+    {
+      "place": "Singapore",
+      "median": 32.97,
+      "spread": 11.7,
+      "agreeing": 3,
+      "total": 5,
+      "settles": false,
+      "readings": [
+        {
+          "slug": "skywire-weather-check",
+          "subnetId": "7304",
+          "celsius": 32.8,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "openweathermap",
+          "subnetId": "211",
+          "celsius": 32.97000000000003,
+          "source": "temp(k)"
+        },
+        {
+          "slug": "weatherapi",
+          "subnetId": "212",
+          "celsius": 28.8,
+          "source": "temp_c(c)"
+        },
+        {
+          "slug": "isobar-weather",
+          "subnetId": "20260826",
+          "celsius": 33,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "chainsight-oracle",
+          "subnetId": "302",
+          "celsius": 40.5,
+          "source": "temperature_c(c)"
+        }
+      ]
+    },
+    {
+      "place": "Reykjavik",
+      "median": 7.95,
+      "spread": 34.69,
+      "agreeing": 4,
+      "total": 6,
+      "settles": false,
+      "readings": [
+        {
+          "slug": "skywire-weather-check",
+          "subnetId": "7304",
+          "celsius": 6.6,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "verity-current-weather",
+          "subnetId": "9006",
+          "celsius": 8.5,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "openweathermap",
+          "subnetId": "211",
+          "celsius": 5.810000000000002,
+          "source": "temp(k)"
+        },
+        {
+          "slug": "weatherapi",
+          "subnetId": "212",
+          "celsius": 8,
+          "source": "temp_c(c)"
+        },
+        {
+          "slug": "isobar-weather",
+          "subnetId": "20260826",
+          "celsius": 7.9,
+          "source": "temperature_c(c)"
+        },
+        {
+          "slug": "chainsight-oracle",
+          "subnetId": "302",
+          "celsius": 40.5,
+          "source": "temperature_c(c)"
+        }
+      ]
+    }
+  ]
+}

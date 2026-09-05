@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nimbi — weather cover that checks its sources</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* ---- preloader ---- */
+  #preloader {
+    position: fixed; inset: 0; z-index: 9998;
+    background: var(--ink); color: var(--white);
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+    padding: 6vw; gap: 6px;
+    transition: transform 0.9s var(--ease), opacity 0.9s var(--ease);
+  }
+  #preloader.gone { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+  #preloader .pl-line { font-size: clamp(1.8rem, 5vw, 3.4rem); font-weight: 700; }
+  #preloader .pl-mark { margin-top: 24px; font-size: 1.2rem; opacity: 0; transition: opacity 0.5s var(--ease); }
+  #preloader .pl-mark.show { opacity: 1; }
+
+  /* ---- hero ---- */
+  /* align-items: center — the headline wraps to several lines at this scale
+     and the narrow side column has far less content, so top-aligning the
+     grid left a large dead gap beneath the side column. Centering the
+     shorter column against the tall one reads as deliberate either way. */
+  .hero { padding: 150px 6vw 90px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 40px; align-items: center; }
+  .hero h1 { font-size: clamp(2.8rem, 7.6vw, 9rem); margin: 0; }
+  .hero-side { padding-top: 14px; }
+  .hero-side p { font-size: 1.05rem; color: #3d3d3d; margin: 0 0 20px; max-width: 34ch; }
+  .status-line { font-size: 0.85rem; display: flex; align-items: center; gap: 8px; margin-bottom: 22px; }
+  .play-btn {
+    width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--ink);
+    background: var(--white); display: flex; align-items: center; justify-content: center;
+    position: relative; cursor: pointer;
+  }
+  .play-btn .preview {
+    position: absolute; bottom: 70px; left: 0; width: 220px; height: 130px;
+    border-radius: 16px; overflow: hidden; opacity: 0; transform: translateY(10px);
+    transition: opacity 0.4s var(--ease), transform 0.4s var(--ease); pointer-events: none;
+    background: var(--ink);
+  }
+  .play-btn:hover .preview { opacity: 1; transform: translateY(0); }
+  .play-btn .preview .wheel-mini { position: absolute; inset: 0; }
+
+  /* ---- consensus wheel section ---- */
+  .wheel-wrapper { height: 340vh; position: relative; }
+  .wheel-pin { position: sticky; top: 0; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .rings { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+  .ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; border: 2px solid var(--paper); }
+  .dark .ring { border-color: rgba(255,255,255,0.12); }
+  .ring.r80 { width: 80vw; height: 80vw; }
+  .ring.r50 { width: 50vw; height: 50vw; }
+
+  .wheel-index {
+    position: absolute; left: 6vw; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 22px; z-index: 3;
+  }
+  .wheel-index .idx { font-size: 1rem; color: rgba(255,255,255,0.35); font-weight: 600; transition: font-size 0.4s var(--ease), color 0.4s var(--ease); }
+  .wheel-index .idx.active { font-size: 1.5rem; color: var(--white); }
+
+  /* Sized to leave real clearance for .wheel-index (left:6vw + its own
+     width) — at 70vw the ring's left edge sat inside the index column's
+     text at viewport widths around ~1000px, overlapping the two. */
+  .wheel-stage { position: relative; width: min(58vw, 620px); height: min(58vw, 620px); z-index: 2; }
+  .wheel-card {
+    position: absolute; top: 0; left: 0; width: 130px;
+    background: var(--white); color: var(--ink); border-radius: 14px;
+    padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;
+    border: 1px solid transparent;
+    transition: background 0.4s var(--ease), border-color 0.4s var(--ease), opacity 0.4s var(--ease);
+  }
+  .wheel-card .wc-name { font-size: 0.68rem; color: #7a7a7a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wheel-card .wc-val { font-size: 1.15rem; font-weight: 700; }
+  .wheel-card.in-ring { border-image: linear-gradient(90deg, transparent, var(--mint)) 1; }
+  .wheel-card.out-ring { background: #3a3a3a; color: var(--grey); }
+  .wheel-card.out-ring .wc-name::after { content: " — excluded"; color: var(--amber); }
+
+  .wheel-center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    text-align: center; z-index: 4; pointer-events: none;
+  }
+  .wheel-center .cl { font-size: clamp(1.8rem, 4vw, 3.2rem); font-weight: 700; color: var(--white); }
+
+  /* ---- marquee ---- */
+  .marquee { padding: 40px 0; overflow: hidden; background: var(--ink); }
+
+  /* ---- callout ---- */
+  .callout-cities { display: flex; gap: 5vw; flex-wrap: wrap; margin: 24px 0; }
+  .callout-cities .cc { }
+  .callout-cities .cc .name { font-size: 1rem; font-weight: 600; opacity: 0.7; }
+  .callout-cities .cc .val { font-size: clamp(2.4rem, 6vw, 5rem); font-weight: 700; }
+
+  /* ---- outcomes ---- */
+  .outcomes-track { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 40px 0; }
+  .outcome-card { padding: 32px 26px; }
+  .outcome-card:nth-child(2) { transform: translateY(30px); }
+  .outcome-card .oc-n { font-size: 0.85rem; opacity: 0.5; font-weight: 600; }
+  .outcome-card h3 { font-size: 1.6rem; margin: 10px 0 8px; }
+  .outcome-card p { margin: 0; color: #555; font-size: 0.95rem; }
+  .outcome-card.mint { background: var(--mint); }
+  .outcome-card.ink { background: var(--ink); color: var(--white); }
+  .outcome-card.ink p { color: #cfcfcf; }
+  .outcome-card.amber { background: var(--amber); }
+
+  /* ---- big number ---- */
+  .bignum-wrap { text-align: center; padding: 130px 6vw; }
+  .bignum { font-size: clamp(5rem, 16vw, 13rem); font-weight: 700; line-height: 1; }
+  .bignum-sub { margin-top: 20px; font-size: clamp(1rem, 2vw, 1.4rem); }
+
+  /* ---- footer ---- */
+  .footer-head { font-size: clamp(2rem, 6vw, 4.5rem); margin: 0 0 40px; }
+  .footer-meta { font-size: 1rem; display: flex; flex-wrap: wrap; gap: 10px 20px; color: #cfcfcf; }
+  .footer-meta .warn { color: var(--amber); font-weight: 700; }
+  .footer-links { margin-top: 30px; display: flex; gap: 20px; }
+  .footer-links a { border: 1px solid rgba(255,255,255,0.3); border-radius: 100px; padding: 8px 18px; font-size: 0.9rem; }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; }
+    .outcomes-track { grid-template-columns: 1fr; }
+    .outcome-card:nth-child(2) { transform: none; }
+    .wheel-index { display: none; }
+  }
+
+  /* The nav pill's width is driven by its content (logo + 4 links + a
+     button) and never shrank on its own — on a phone-width screen it ran
+     ~100px wider than the viewport with both edges clipped off-screen and
+     the links unreachable. Drop the link row and tighten padding so only
+     the logo and Buy cover survive, which is all that fits. */
+  @media (max-width: 640px) {
+    .nav { gap: 14px; padding: 10px 10px 10px 16px; max-width: calc(100vw - 32px); }
+    .nav .links { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="preloader">
+  <div class="pl-line" data-reveal="word">Six oracles.</div>
+  <div class="pl-line" data-reveal="word">One question.</div>
+  <div class="pl-line" data-reveal="word">One answer.</div>
+  <div class="pl-mark" id="pl-mark">Nimb<span style="color:var(--mint)">i</span></div>
+</div>
+
+<nav class="nav pill-dark" id="nav">
+  <div class="logo">Nimb<span>i</span></div>
+  <div class="links">
+    <a href="#how">How it works</a>
+    <a href="#consensus">Consensus</a>
+    <a href="#settlements">Settlements</a>
+    <a href="/buy.html">Docs</a>
+  </div>
+  <div class="cta-wrap"><a class="pill pill-dark" href="/buy.html" data-label="Buy cover"><span class="label">Buy cover</span></a></div>
+</nav>
+
+<main class="paper">
+  <section class="hero">
+    <h1 class="display">
+      <span class="reveal-line" data-reveal="word">Weather cover that pays</span>
+      <span class="reveal-line" data-reveal="word">when independent oracles</span>
+      <span class="reveal-line" data-reveal="word"><span class="grad-word">agree</span> — and refuses when</span>
+      <span class="reveal-line" data-reveal="word">they <span class="grad-word">don't</span>.</span>
+    </h1>
+    <div class="hero-side">
+      <p>Six independent Telegraph oracles answer the same question about the same place. Nimbi only pays when a real majority agree — and it says exactly why when they don't.</p>
+      <div class="status-line"><span class="status-dot agree" id="status-dot"></span><span id="status-text" class="mono">connecting to Base Sepolia…</span></div>
+      <div class="play-btn" data-cursor="preview">
+        ▶
+        <div class="preview"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="section-tab paper" style="padding:20px 6vw 0;">
+    <div style="display:flex;gap:40px;font-size:0.85rem;color:#666;">
+      <span>01 Read</span><span>02 Consensus</span><span>03 Settle</span>
+    </div>
+  </section>
+
+  <section id="consensus" class="wheel-wrapper dark">
+    <div class="wheel-pin">
+      <div class="rings"><div class="ring r80"></div><div class="ring r50"></div></div>
+      <div class="wheel-index">
+        <div class="idx" data-idx="0">1 Read</div>
+        <div class="idx" data-idx="1">2 Consensus</div>
+        <div class="idx" data-idx="2">3 Settle</div>
+      </div>
+      <div class="wheel-stage" id="wheel"></div>
+      <div class="wheel-center" id="wheel-center"></div>
+    </div>
+  </section>
+
+  <section class="marquee">
+    <div class="marquee-track" id="marquee">
+      <span>CONSENSUS</span><span>—</span><span>NOT TRUST</span><span>—</span>
+    </div>
+  </section>
+
+  <section class="magenta section-tab">
+    <div class="section" style="padding-top:60px;">
+      <div class="callout-cities">
+        <div class="cc"><div class="name">Cairo</div><div class="val">40.50°C</div></div>
+        <div class="cc"><div class="name">London</div><div class="val">40.50°C</div></div>
+        <div class="cc"><div class="name">Reykjavik</div><div class="val">40.50°C</div></div>
+      </div>
+      <p class="body-lg" style="font-weight:600;">A constant, not a measurement. One oracle — <b>chainsight-oracle</b> — says the same thing everywhere. Nimbi outvotes it, names it, and settles on the five that actually agree.</p>
+    </div>
+  </section>
+
+  <section class="section paper">
+    <div class="progress-track" style="margin-bottom:36px;"><div class="progress-fill" style="width:33%"></div></div>
+    <div class="outcomes-track">
+      <div class="card outcome-card mint card-clip">
+        <div class="oc-n">01</div>
+        <h3>Paid out</h3>
+        <p>Majority agreed, threshold breached, funds moved immediately.</p>
+      </div>
+      <div class="card outcome-card ink card-clip">
+        <div class="oc-n">02</div>
+        <h3>Checked</h3>
+        <p>Majority agreed, threshold not breached. Nothing owed yet.</p>
+      </div>
+      <div class="card outcome-card amber card-clip">
+        <div class="oc-n">03</div>
+        <h3>Held</h3>
+        <p>No majority. Funds untouched, and the reason is recorded on-chain. This is the guard working, not an error.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="dark bignum-wrap section-tab">
+    <div class="bignum mono" id="bignum">40.50</div>
+    <div class="bignum-sub grad-word">the same reading, in every city, every time</div>
+  </section>
+
+  <section id="settlements" class="section paper">
+    <h2 style="font-size:1rem;text-transform:uppercase;letter-spacing:0.06em;color:#777;margin-bottom:20px;">Recent settlements</h2>
+    <table class="ledger" id="ledger-table">
+      <thead><tr><th>City</th><th>Threshold</th><th>Premium</th><th>Outcome</th><th>Link</th></tr></thead>
+      <tbody><tr><td colspan="5">Loading…</td></tr></tbody>
+    </table>
+  </section>
+</main>
+
+<footer class="dark section-tab" style="padding:90px 6vw 50px;">
+  <h2 class="footer-head display">
+    <span class="reveal-line" data-reveal="word">Buy cover.</span>
+    <span class="reveal-line" data-reveal="word">Watch it settle.</span>
+    <span class="reveal-line" data-reveal="word">Or watch it refuse.</span>
+  </h2>
+  <div class="footer-meta">
+    <span>Base Sepolia</span>·<span>testnet play-money USDC</span>·<span class="warn">NOT INSURANCE</span>·<span id="contract-link-wrap"></span>
+  </div>
+  <div class="footer-links">
+    <a href="https://discord.gg/" target="_blank" rel="noopener">Discord</a>
+    <a href="https://x.com/" target="_blank" rel="noopener">X</a>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script type="module">
+import { initCursor, observeReveals, observeClips, initNavCollapse, initMarquee, ConsensusWheel, pinnedStages } from "/motion.js";
+
+// ---- preloader ----
+window.addEventListener("load", () => {
+  document.querySelectorAll("#preloader .pl-line").forEach((el) => prepareAndReveal(el));
+  setTimeout(() => document.getElementById("pl-mark").classList.add("show"), 1400);
+  setTimeout(() => document.getElementById("preloader").classList.add("gone"), 2200);
+});
+function prepareAndReveal(el) {
+  const text = el.textContent;
+  el.textContent = "";
+  el.classList.add("reveal-line");
+  const span = document.createElement("span");
+  span.className = "word";
+  span.textContent = text;
+  el.appendChild(span);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("in")));
+}
+
+initCursor();
+observeReveals();
+observeClips();
+initNavCollapse(document.getElementById("nav"));
+initMarquee(document.getElementById("marquee"), 55);
+
+document.getElementById("contract-link-wrap").innerHTML =
+  `<a href="${addrLink(CONTRACT)}" target="_blank" rel="noopener" style="text-decoration:underline">${short(CONTRACT)}</a>`;
+
+// ---- consensus wheel wired to live data ----
+// Renders the "N agree / M doesn't" summary. Called both on a stage
+// transition and whenever a live poll refreshes the numbers while the wheel
+// is already sitting in the settle stage — otherwise that text would freeze
+// at whatever it said the moment the visitor scrolled in, while the cards
+// beside it keep updating on every 45s poll and drift out of sync with it.
+function renderCenter() {
+  const center = document.getElementById("wheel-center");
+  if (wheel.stage === 2 && lastVerdict) {
+    const n = lastVerdict.agreeing;
+    const total = lastVerdict.total;
+    // Not gradient — the brief reserves that for heading emphasis words,
+    // button-hover sweeps, and the logo. This is a scroll-triggered callout
+    // line, not a heading, so it gets the mint "agreement" semantic colour
+    // instead of reaching for the gradient as a generic emphasis tool.
+    center.innerHTML = `<div class="cl">${n} agree.</div><div class="cl">${total - n} doesn't.</div><div class="cl" style="color:var(--mint)">We settle anyway.</div>`;
+  } else {
+    center.innerHTML = "";
+  }
+}
+
+const wheel = new ConsensusWheel(document.getElementById("wheel"), {
+  onStage: (stage) => {
+    document.querySelectorAll(".wheel-index .idx").forEach((el) => el.classList.toggle("active", Number(el.dataset.idx) === stage));
+    renderCenter();
+  },
+});
+
+let lastVerdict = null;
+
+async function loadHeroConsensus() {
+  try {
+    const data = await api("/api/consensus?place=cairo");
+    lastVerdict = data.verdict;
+    const outlierSlugs = new Set(data.verdict.outliers.map((o) => o.slug));
+    wheel.setReadings(data.readings, outlierSlugs);
+    renderCenter();
+    document.getElementById("status-text").textContent =
+      `Base Sepolia · ${data.verdict.agreeing} of ${data.verdict.total} agree · last read just now`;
+    document.getElementById("status-dot").className = "status-dot " + (data.verdict.ok ? "agree" : "hold");
+
+    const outlier = data.readings.find((r) => outlierSlugs.has(r.slug));
+    if (outlier) document.getElementById("bignum").textContent = outlier.celsius.toFixed(2);
+  } catch (e) {
+    document.getElementById("status-text").textContent = "could not reach the oracles right now";
+  }
+}
+
+pinnedStages(document.getElementById("consensus"), 3, (stage) => wheel.setStage(stage));
+loadHeroConsensus();
+setInterval(loadHeroConsensus, 45_000);
+
+// ---- ledger teaser ----
+async function loadLedger() {
+  const tbody = document.querySelector("#ledger-table tbody");
+  try {
+    const data = await api("/api/ledger");
+    const rows = data.policies.filter((p) => p.attestations > 0).slice(-6).reverse();
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5">No settlements yet — be the first.</td></tr>'; return; }
+    tbody.innerHTML = rows.map((p) => {
+      const outcome = p.last.settled ? (p.status === "PaidOut" ? "PaidOut" : "Checked") : "Held";
+      return `<tr>
+        <td>${cap(p.place)}</td>
+        <td>${p.payAbove ? "≥" : "≤"} ${(p.thresholdMilliC / 1000).toFixed(1)}°C</td>
+        <td>${usd(p.premium)}</td>
+        <td><span class="outcome-pill ${outcome}">${outcome}</span></td>
+        <td><a href="${addrLink(CONTRACT)}" target="_blank" rel="noopener" style="text-decoration:underline">policy #${p.id}</a></td>
+      </tr>`;
+    }).join("");
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5">${e.message}</td></tr>`;
+  }
+}
+loadLedger();
+</script>
+</body>
+</html>
