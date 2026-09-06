@@ -222,7 +222,16 @@ app.post("/api/settle", async (req, res) => {
   }
 });
 
-app.use(express.static(fileURLToPath(new URL("../public/", import.meta.url))));
+const publicDir = fileURLToPath(new URL("../public/", import.meta.url));
+
+// Clean URLs for the two secondary pages — /buy and /docs rather than
+// /buy.html and /docs.html. The .html files stay put and still work
+// directly (express.static below still serves them), so nothing already
+// pointing at the old paths breaks; these just take priority.
+app.get("/buy", (_req, res) => res.sendFile("buy.html", { root: publicDir }));
+app.get("/docs", (_req, res) => res.sendFile("docs.html", { root: publicDir }));
+
+app.use(express.static(publicDir));
 
 app.listen(PORT, () => {
   console.log(`Nimbi backend on http://localhost:${PORT}`);
