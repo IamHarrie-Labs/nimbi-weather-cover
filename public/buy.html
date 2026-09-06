@@ -23,7 +23,12 @@
   .connect-row p { font-size: 1.3rem; font-weight: 600; margin-bottom: 24px; }
 
   .sentence { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 600; line-height: 1.35; margin: 20px 0 30px; }
-  .sentence .grad-word { font-weight: 700; }
+  /* The shared .grad-word gradient-clip text is illegible against this
+     panel's magenta background (the gradient's darker stops disappear into
+     the pink). This sentence isn't a heading either, so it wasn't one of
+     the brief's three sanctioned gradient spots to begin with. Plain white
+     stands out against magenta the way the gradient can't. */
+  .sentence .grad-word { font-weight: 700; background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--white); }
 
   .fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 26px; }
   .fields .field label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; opacity: 0.7; }
@@ -171,6 +176,16 @@ function setStatus(msg, kind) {
   el.className = "buy-status" + (kind ? " " + kind : "");
 }
 
+/** Same as setStatus, but the message ends in a real link to the
+ *  transaction on BaseScan instead of an unclickable truncated hash — so
+ *  minting, approving, and buying all give you something you can actually
+ *  go verify, not just text claiming it happened. */
+function setStatusWithTx(label, hash, kind) {
+  const el = document.getElementById("buy-status");
+  el.innerHTML = `${label} <a href="${txLink(hash)}" target="_blank" rel="noopener" style="text-decoration:underline">${short(hash)}</a>`;
+  el.className = "buy-status" + (kind ? " " + kind : "");
+}
+
 async function doConnect() {
   try {
     wallet = await connectWallet();
@@ -190,7 +205,7 @@ async function doMint() {
     const token = new ethers.Contract(TOKEN, TOKEN_ABI, wallet.signer);
     const tx = await token.mint(wallet.address, ethers.parseUnits("2", 6));
     await tx.wait();
-    setStatus(`Minted. Tx ${tx.hash.slice(0, 14)}...`, "ok");
+    setStatusWithTx("Minted.", tx.hash, "ok");
     document.getElementById("approve-btn").disabled = false;
     document.getElementById("tab-approve").classList.add("active");
   } catch (e) {
@@ -204,7 +219,7 @@ async function doApprove() {
     const token = new ethers.Contract(TOKEN, TOKEN_ABI, wallet.signer);
     const tx = await token.approve(CONTRACT, ethers.MaxUint256);
     await tx.wait();
-    setStatus(`Approved. Tx ${tx.hash.slice(0, 14)}...`, "ok");
+    setStatusWithTx("Approved.", tx.hash, "ok");
     document.getElementById("buy-btn").disabled = false;
     document.getElementById("tab-buy").classList.add("active");
   } catch (e) {
@@ -229,7 +244,7 @@ async function doBuy() {
     for (const log of receipt.logs) {
       try { const p = guard.interface.parseLog(log); if (p?.name === "PolicyBought") { id = Number(p.args.id); break; } } catch {}
     }
-    setStatus(`Bought policy #${id}. Tx ${receipt.hash.slice(0, 14)}...`, "ok");
+    setStatusWithTx(`Bought policy #${id}.`, receipt.hash, "ok");
     refreshLedger();
   } catch (e) {
     setStatus(e.shortMessage || e.message, "err");
