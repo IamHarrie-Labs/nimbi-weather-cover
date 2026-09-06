@@ -186,54 +186,25 @@ export function renderOracleCards(container, readings, outlierSlugs, { stage = "
   });
 }
 
-// ---------------------------------------------------------------- carousel
-/** A small touch-friendly carousel: swipe or use the dot/arrow controls,
- *  no scroll-jacking. `slides` is a NodeList/array of elements already in
- *  the DOM inside `track`. */
-export function initCarousel(root) {
-  const track = root.querySelector(".carousel-track");
-  const slides = [...track.children];
-  const dotsWrap = root.querySelector(".carousel-dots");
-  const prevBtn = root.querySelector(".carousel-prev");
-  const nextBtn = root.querySelector(".carousel-next");
-  let index = 0;
+// ---------------------------------------------------------------- drag-scroll
+/** Wheel-to-horizontal-scroll plus pointer-drag for a horizontally
+ *  scrollable stack. A vertical wheel gesture over the element scrolls it
+ *  sideways (most trackpads/mice only send vertical deltas), and a mouse
+ *  drag pans it the same way a touch swipe already does natively. */
+export function initDragScroll(el) {
+  el.addEventListener("wheel", (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  }, { passive: false });
 
-  const dots = slides.map((_, i) => {
-    const d = document.createElement("button");
-    d.setAttribute("aria-label", `Go to slide ${i + 1}`);
-    d.addEventListener("click", () => go(i));
-    dotsWrap.appendChild(d);
-    return d;
+  let down = false, startX = 0, startScroll = 0;
+  el.addEventListener("pointerdown", (e) => {
+    down = true; startX = e.clientX; startScroll = el.scrollLeft;
+    el.classList.add("grabbing");
   });
-
-  function render() {
-    track.style.transform = `translateX(-${index * 100}%)`;
-    dots.forEach((d, i) => d.classList.toggle("active", i === index));
-    if (prevBtn) prevBtn.disabled = index === 0;
-    if (nextBtn) nextBtn.disabled = index === slides.length - 1;
-    root.dispatchEvent(new CustomEvent("slidechange", { detail: { index } }));
-  }
-
-  function go(i) {
-    index = Math.max(0, Math.min(slides.length - 1, i));
-    render();
-  }
-
-  prevBtn?.addEventListener("click", () => go(index - 1));
-  nextBtn?.addEventListener("click", () => go(index + 1));
-
-  // Touch/swipe support: track lets native scroll happen too (scroll-snap
-  // in CSS), this just keeps the dots/arrows in sync with where a swipe
-  // actually landed.
-  let startX = null;
-  track.addEventListener("touchstart", (e) => { startX = e.touches[0].clientX; }, { passive: true });
-  track.addEventListener("touchend", (e) => {
-    if (startX === null) return;
-    const dx = e.changedTouches[0].clientX - startX;
-    if (Math.abs(dx) > 40) go(index + (dx < 0 ? 1 : -1));
-    startX = null;
-  });
-
-  render();
-  return { go, get index() { return index; } };
+  window.addEventListener("pointerup", () => { down = false; el.classList.remove("grabbing"); });
+  window.addEventListener("pointermove", (e) => { if (down) el.scrollLeft = startScroll - (e.clientX - startX); });
 }
+

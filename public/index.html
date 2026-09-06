@@ -15,14 +15,31 @@
     transition: transform 0.9s var(--ease), opacity 0.9s var(--ease);
   }
   #preloader.gone { transform: translateY(-100%); opacity: 0; pointer-events: none; }
-  #preloader .pl-line { font-size: clamp(1.8rem, 5vw, 3.4rem); font-weight: 700; }
+  #preloader .pl-line-mask { overflow: hidden; }
+  #preloader .pl-line { font-size: clamp(1.8rem, 5vw, 3.4rem); font-weight: 700; display: inline-block; transform: translateY(110%); opacity: 0; transition: transform 0.6s var(--ease), opacity 0.6s var(--ease); }
+  #preloader .pl-line.in { transform: translateY(0); opacity: 1; }
   #preloader .pl-mark { margin-top: 24px; font-size: 1.2rem; opacity: 0; transition: opacity 0.5s var(--ease); }
   #preloader .pl-mark.show { opacity: 1; }
 
   /* ---- hero ---- */
   .hero { padding: 150px 6vw 90px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px; align-items: center; }
   .hero h1 { font-size: clamp(2.6rem, 6.2vw, 7rem); margin: 0; }
-  .hero-sub { font-size: clamp(1.2rem, 2.2vw, 1.7rem); font-weight: 600; margin: 20px 0 0; max-width: 26ch; }
+  .hero-sub { font-size: clamp(1.2rem, 2.2vw, 1.7rem); font-weight: 600; margin: 20px 0 0; max-width: 26ch; overflow: hidden; }
+  /* Each phrase is one sliding unit, revealed as a whole rather than split
+     word-by-word in JS. A prior version split text into per-word spans for
+     the reveal animation, and a whitespace-only span between two words is
+     exactly the case CSS strips as "leading/trailing whitespace" of an
+     element, so it silently deleted every space: "Weather cover" rendered
+     as "Weathercover". Hardcoding the mask/slide structure directly, with
+     no runtime text splitting, removes the bug class entirely. */
+  .line-mask { display: block; overflow: hidden; }
+  .line-mask .line-in { display: inline-block; transform: translateY(110%); opacity: 0; transition: transform 0.6s var(--ease), opacity 0.6s var(--ease); }
+  .hero.in .line-mask .line-in, .footer-head.in .line-mask .line-in { transform: translateY(0); opacity: 1; }
+  .hero.in .hero-sub .line-in { transition-delay: 0.2s; }
+  .hero.in h1 .line-mask:nth-child(2) .line-in { transition-delay: 0.1s; }
+  .footer-head.in .line-mask:nth-child(2) .line-in { transition-delay: 0.1s; }
+  .footer-head.in .line-mask:nth-child(3) .line-in { transition-delay: 0.2s; }
+
   .hero-side { padding-top: 14px; }
   .hero-side p { font-size: 1.05rem; color: #3d3d3d; margin: 0 0 20px; max-width: 34ch; }
   .status-line { font-size: 0.85rem; display: flex; align-items: center; gap: 8px; margin-bottom: 22px; }
@@ -39,23 +56,10 @@
   }
   .play-btn:hover .preview { opacity: 1; transform: translateY(0); }
 
-  /* ---- how it settles (carousel) ---- */
-  .stage-kicker { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); margin-bottom: 30px; }
-  .stage-slide h3 { font-size: clamp(1.6rem, 3vw, 2.4rem); margin: 0 0 10px; }
-  .stage-slide p { color: #cfcfcf; max-width: 52ch; margin: 0 0 30px; font-size: 1.05rem; }
-  .stage-slide { padding: 10px 4px 30px; }
-  .settle-summary { font-size: clamp(1.3rem, 2.6vw, 2rem); font-weight: 700; text-align: center; padding: 20px 0; }
-  .settle-summary .verdict-line { margin-bottom: 6px; }
-
-  /* ---- marquee ---- */
-  .marquee { padding: 40px 0; overflow: hidden; background: var(--ink); }
-  .marquee-track span.sep { font-size: clamp(3rem, 9vw, 7rem); padding: 0 1.2rem; opacity: 0.3; }
+  /* ---- how it settles ---- */
+  .stage-kicker { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); margin-bottom: 30px; padding: 0 6vw; }
 
   /* ---- callout ---- */
-  /* A real 3-column grid instead of a wrapping flex row: three items wrapped
-     unevenly as two-then-one on medium screens, which read as misaligned
-     rather than deliberate. A grid keeps them level at every width down to
-     the point they stack. */
   .callout-cities { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 24px 0; }
   .callout-cities .cc .name { font-size: 1rem; font-weight: 600; opacity: 0.7; }
   .callout-cities .cc .val { font-size: clamp(2rem, 5vw, 4.2rem); font-weight: 700; }
@@ -91,11 +95,6 @@
     .outcomes-track { grid-template-columns: 1fr; }
     .outcome-card:nth-child(2) { transform: none; }
   }
-
-  /* The nav pill's width used to be driven purely by its content (logo + 4
-     links + a button) with nothing to shrink it, so on a phone it ran wider
-     than the screen with both edges clipped off and the links unreachable.
-     Below 640px it drops to logo + a burger that opens a full menu instead. */
   @media (max-width: 640px) {
     .nav { max-width: calc(100vw - 32px); }
   }
@@ -104,9 +103,9 @@
 <body>
 
 <div id="preloader">
-  <div class="pl-line">Six oracles.</div>
-  <div class="pl-line">One question.</div>
-  <div class="pl-line">One answer.</div>
+  <div class="pl-line-mask"><div class="pl-line" id="pl1">Six oracles.</div></div>
+  <div class="pl-line-mask"><div class="pl-line" id="pl2">One question.</div></div>
+  <div class="pl-line-mask"><div class="pl-line" id="pl3">One answer.</div></div>
   <div class="pl-mark" id="pl-mark">Nimb<span style="color:var(--mint)">i</span></div>
 </div>
 
@@ -133,13 +132,13 @@
 </div>
 
 <main class="paper">
-  <section class="hero">
+  <section class="hero" id="hero">
     <div>
       <h1 class="display">
-        <span class="reveal-line" data-reveal="word">Weather cover, paid out</span>
-        <span class="reveal-line" data-reveal="word">only when oracles <span class="grad-word">agree</span>.</span>
+        <span class="line-mask"><span class="line-in">Weather cover, paid out</span></span>
+        <span class="line-mask"><span class="line-in">only when oracles <span class="grad-word">agree</span>.</span></span>
       </h1>
-      <p class="hero-sub display">When they don't agree, Nimbi <span class="grad-word">refuses</span> to pay and tells you why.</p>
+      <p class="hero-sub display line-mask"><span class="line-in">When they don't agree, Nimbi <span class="grad-word">refuses</span> to pay and tells you why.</span></p>
     </div>
     <div class="hero-side">
       <p>Six independent Telegraph oracles answer the same question about the same place. A real majority has to agree before any money moves.</p>
@@ -151,41 +150,36 @@
     </div>
   </section>
 
-  <section id="how" class="section-tab dark" style="padding:70px 6vw 60px;">
+  <section id="how" class="section-tab dark" style="padding:70px 0 90px; overflow:hidden;">
     <div id="consensus"></div>
     <div class="stage-kicker">How a settlement happens</div>
-    <div class="carousel" id="stage-carousel">
-      <div class="carousel-viewport">
-        <div class="carousel-track">
-          <div class="carousel-slide stage-slide">
-            <h3>1. Read</h3>
-            <p>The agent asks six independent oracles the same question about the same place, right now.</p>
-            <div class="oracle-row" id="oracle-read"></div>
-          </div>
-          <div class="carousel-slide stage-slide">
-            <h3>2. Consensus</h3>
-            <p>Whichever oracles land close together form the majority. Anyone far outside that group gets named and left out, not quietly averaged in.</p>
-            <div class="oracle-row" id="oracle-consensus"></div>
-          </div>
-          <div class="carousel-slide stage-slide">
-            <h3>3. Settle</h3>
-            <p>If a real majority agreed and the threshold was crossed, the contract pays out immediately. If not, it holds the money and records why.</p>
-            <div class="oracle-row" id="oracle-settle"></div>
-            <div class="settle-summary" id="settle-summary"></div>
-          </div>
-        </div>
+    <div class="stage-stack" id="stage-stack">
+      <div class="stage-card">
+        <div class="sc-n">01</div>
+        <h3>Read</h3>
+        <p>The agent asks six independent oracles the same question about the same place, right now.</p>
+        <div class="oracle-row" id="oracle-read"></div>
       </div>
-      <div class="carousel-controls">
-        <button class="arrow carousel-prev" aria-label="Previous">‹</button>
-        <div class="carousel-dots"></div>
-        <button class="arrow carousel-next" aria-label="Next">›</button>
+      <div class="stage-card">
+        <div class="sc-n">02</div>
+        <h3>Consensus</h3>
+        <p>Whichever oracles land close together form the majority. Anyone far outside that group gets named and left out, not quietly averaged in.</p>
+        <div class="oracle-row" id="oracle-consensus"></div>
+      </div>
+      <div class="stage-card">
+        <div class="sc-n">03</div>
+        <h3>Settle</h3>
+        <p>If a real majority agreed and the threshold was crossed, the contract pays out immediately. If not, it holds the money and records why.</p>
+        <div class="oracle-row" id="oracle-settle"></div>
+        <div class="settle-verdict" id="settle-verdict"></div>
       </div>
     </div>
   </section>
 
   <section class="marquee">
     <div class="marquee-track" id="marquee">
-      <span>CONSENSUS</span><span class="sep">·</span><span style="font-style:italic;opacity:0.35">NOT TRUST</span><span class="sep">·</span>
+      <span>CONSENSUS</span><span class="sep">·</span><span class="italic-word">NOT TRUST</span><span class="sep">·</span>
+      <span>CONSENSUS</span><span class="sep">·</span><span class="italic-word">NOT TRUST</span><span class="sep">·</span>
     </div>
   </section>
 
@@ -241,10 +235,10 @@
 </main>
 
 <footer class="dark section-tab" style="padding:90px 6vw 50px;">
-  <h2 class="footer-head display">
-    <span class="reveal-line" data-reveal="word">Buy cover.</span>
-    <span class="reveal-line" data-reveal="word">Watch it settle.</span>
-    <span class="reveal-line" data-reveal="word">Or watch it refuse.</span>
+  <h2 class="footer-head display" id="footer-head">
+    <span class="line-mask"><span class="line-in">Buy cover.</span></span>
+    <span class="line-mask"><span class="line-in">Watch it settle.</span></span>
+    <span class="line-mask"><span class="line-in">Or watch it refuse.</span></span>
   </h2>
   <div class="footer-meta">
     <span>Base Sepolia</span>·<span>testnet play-money USDC</span>·<span class="warn">NOT INSURANCE</span>·<span id="contract-link-wrap"></span>·<a href="/docs.html" style="text-decoration:underline">Docs</a>
@@ -257,43 +251,37 @@
 
 <script src="app.js"></script>
 <script type="module">
-import { initCursor, observeReveals, observeClips, initNavCollapse, initMobileMenu, initMarquee, renderOracleCards, initCarousel } from "/motion.js";
+import { initCursor, observeClips, initNavCollapse, initMobileMenu, renderOracleCards, initDragScroll } from "/motion.js";
 
-// ---- preloader ----
-window.addEventListener("load", () => {
-  document.querySelectorAll("#preloader .pl-line").forEach((el) => prepareAndReveal(el));
-  setTimeout(() => document.getElementById("pl-mark").classList.add("show"), 1400);
-  setTimeout(() => document.getElementById("preloader").classList.add("gone"), 2200);
-});
-function prepareAndReveal(el) {
-  const text = el.textContent;
-  el.textContent = "";
-  el.classList.add("reveal-line");
-  const span = document.createElement("span");
-  span.className = "word";
-  span.textContent = text;
-  el.appendChild(span);
-  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("in")));
-}
+// ---- preloader: matches the approved design's exact stage timings ----
+setTimeout(() => document.getElementById("pl1").classList.add("in"), 100);
+setTimeout(() => document.getElementById("pl2").classList.add("in"), 400);
+setTimeout(() => document.getElementById("pl3").classList.add("in"), 700);
+setTimeout(() => document.getElementById("pl-mark").classList.add("show"), 1400);
+setTimeout(() => document.getElementById("preloader").classList.add("gone"), 2200);
+setTimeout(() => document.getElementById("hero").classList.add("in"), 2300);
 
 initCursor();
-observeReveals();
 observeClips();
 initNavCollapse(document.getElementById("nav"));
 initMobileMenu(document.getElementById("nav-burger"), document.getElementById("mobile-menu"));
-initMarquee(document.getElementById("marquee"), 55);
-const carousel = initCarousel(document.getElementById("stage-carousel"));
+initDragScroll(document.getElementById("stage-stack"));
+
+const footIO = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    if (e.isIntersecting) { document.getElementById("footer-head").classList.add("in"); footIO.disconnect(); }
+  }
+}, { threshold: 0.3 });
+footIO.observe(document.querySelector("footer"));
 
 document.getElementById("contract-link-wrap").innerHTML =
   `<a href="${addrLink(CONTRACT)}" target="_blank" rel="noopener" style="text-decoration:underline">${short(CONTRACT)}</a>`;
 
-// ---- live oracle data, shown across all three carousel slides ----
-function renderSettleSummary(verdict) {
-  const el = document.getElementById("settle-summary");
+// ---- live oracle data across all three stage cards ----
+function renderVerdict(verdict) {
+  const el = document.getElementById("settle-verdict");
   if (!verdict) { el.innerHTML = ""; return; }
-  const n = verdict.agreeing;
-  const total = verdict.total;
-  el.innerHTML = `<div class="verdict-line">${n} of ${total} agree.</div><div class="verdict-line" style="color:var(--mint)">${verdict.ok ? "We settle." : "We hold, and say why."}</div>`;
+  el.innerHTML = `<div class="sv-line">${verdict.agreeing} of ${verdict.total} agree.</div><div class="sv-line" style="color:var(--mint-deep)">${verdict.ok ? "We settle." : "We hold, and say why."}</div>`;
 }
 
 async function loadHeroConsensus() {
@@ -303,7 +291,7 @@ async function loadHeroConsensus() {
     renderOracleCards(document.getElementById("oracle-read"), data.readings, outlierSlugs, { stage: "read" });
     renderOracleCards(document.getElementById("oracle-consensus"), data.readings, outlierSlugs, { stage: "consensus" });
     renderOracleCards(document.getElementById("oracle-settle"), data.readings, outlierSlugs, { stage: "settle" });
-    renderSettleSummary(data.verdict);
+    renderVerdict(data.verdict);
 
     document.getElementById("status-text").textContent =
       `Base Sepolia, ${data.verdict.agreeing} of ${data.verdict.total} agree, last read just now`;
