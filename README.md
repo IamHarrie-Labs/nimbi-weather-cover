@@ -17,6 +17,8 @@ Built for the [Telegraph Protocol Hackathon](https://hackathon.telegraphprotocol
 
 **[Live site](https://nimbi-project.onrender.com/)** · [The finding](#the-finding-one-oracle-one-number-five-cities) · [Verify it yourself](#verify-it-yourself-right-now) · [Architecture](#architecture) · [Decisions](#decisions-worth-explaining) · [Limitations](#whats-real-and-what-isnt)
 
+![Nimbi landing page, reading live oracle data](docs/screenshot-hero.png)
+
 </div>
 
 ---
@@ -61,6 +63,8 @@ While building this, a multi-city survey (`src/survey.js`, raw output in [`build
 
 Reykjavik and Cairo do not share a climate, 20 degrees apart on the day this was measured, and `chainsight-oracle` returned the exact same figure for both, down to the second decimal. That's not a measurement. It's a constant standing in for one.
 
+![The same 40.50°C reading in Cairo, London, and Reykjavik alike](docs/screenshot-callout.png)
+
 Nimbi's consensus rule catches this without ever being told which miner is broken: it just notices that five miners cluster together and one doesn't, and excludes the one that doesn't. Reproduce it yourself:
 
 ```bash
@@ -92,6 +96,8 @@ Every one of the 3 real settlements below actually happened on the live contract
 | #0 | Cairo | ≥ 23.0°C | **Paid out** | 5 of 6 |
 | #2 | Cairo | ≥ 23.0°C | **Held** (spread too wide) | 2 of 6 |
 | #4 | London | ≤ 30.0°C | **Paid out** | 5 of 5 |
+
+![The live settlements ledger, showing PaidOut, Checked, and Held outcomes](docs/screenshot-settlements.png)
 
 ## Verify it yourself right now
 
