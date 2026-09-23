@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "probe": "node src/probe.js",
-    "agent": "node src/agent.js",
-    "server": "node src/server.js"
+    "server": "node src/server.js",
+    "test": "node --test src/*.test.js"
   },
   "dependencies": {
     "cors": "^2.8.6",

@@ -4,6 +4,8 @@
 
 ### Weather cover that checks its sources before it pays
 
+[![CI](https://github.com/IamHarrie-Labs/nimbi-weather-cover/actions/workflows/ci.yml/badge.svg)](https://github.com/IamHarrie-Labs/nimbi-weather-cover/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-555555)](LICENSE)
 [![Network: Base Sepolia](https://img.shields.io/badge/network-Base_Sepolia-555555)](https://sepolia.basescan.org/address/0x3C978900248E7180593fCb3dB97Ce6F1BE7A1908)
 [![Miners queried per read: 6](https://img.shields.io/badge/miners_queried_per_read-6-555555)](src/miners.js)
 [![Chainsight anomaly: 40.50°C in 5 of 5 cities](https://img.shields.io/badge/chainsight_anomaly-40.50°C_in_5_of_5_cities-8b6a27)](#the-finding-one-oracle-one-number-five-cities)
@@ -101,6 +103,14 @@ curl "https://nimbi-project.onrender.com/api/ledger"                  # every po
 ```
 
 The first call can take 20 to 40 seconds. That's not a slow API, that's six sequential real network calls to independent miners. The site's own free host also sleeps after inactivity, so a cold first hit can add another 30 to 60 seconds on top, before any of that reading even starts.
+
+Or check the consensus rule itself, offline, no network at all:
+
+```bash
+git clone https://github.com/IamHarrie-Labs/nimbi-weather-cover && cd nimbi-weather-cover
+npm install
+npm test   # 18 cases, several taken from the real chainsight-oracle data above
+```
 
 ## Architecture
 
